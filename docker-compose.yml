@@ -1,1 +1,32 @@
+version: "3.9"
 
+services:
+
+  vote:
+    image: dockersamples/examplevotingapp_vote
+    ports:
+      - "8080:80"
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+
+  worker:
+    image: dockersamples/examplevotingapp_worker
+    depends_on:
+      - redis
+      - db
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+  result:
+    image: dockersamples/examplevotingapp_result
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
