@@ -1,1 +1,59 @@
+version: "3.9"          # Compose file format version
 
+services:
+
+  # ── 1. VOTING APP (Python front-end) ─────────────────────
+  voting-app:
+    image: dockersamples/examplevotingapp_vote  # Pull from Docker Hub
+    ports:
+      - "5000:80"       # host:container — visit localhost:5000
+    networks:
+      - front-end       # Only needs front-end network
+    depends_on:
+      - redis           # Start redis before voting-app
+
+  # ── 2. RESULT APP (Node.js front-end) ────────────────────
+  result-app:
+    image: dockersamples/examplevotingapp_result
+    ports:
+      - "5001:80"       # Visit localhost:5001
+    networks:
+      - front-end
+      - back-end        # Needs back-end to reach postgres
+    depends_on:
+      - postgres
+
+  # ── 3. REDIS (in-memory queue) ────────────────────────────
+  redis:
+    image: redis         # Official Redis image
+    networks:
+      - front-end       # voting-app pushes here
+      - back-end        # worker reads from here
+
+  # ── 4. POSTGRESQL (persistent database) ──────────────────
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: secret   # Required env variable
+    volumes:
+      - db-data:/var/lib/postgresql/data  # Named volume
+    networks:
+      - back-end
+
+  # ── 5. WORKER (background processor) ─────────────────────
+  worker:
+    image: dockersamples/examplevotingapp_worker
+    networks:
+      - back-end        # Needs both redis and postgres
+    depends_on:
+      - redis
+      - postgres
+
+# ── NETWORKS ────────────────────────────────────────────────
+networks:
+  front-end:            # voting-app ↔ redis
+  back-end:             # worker ↔ redis ↔ postgres ↔ result-app
+
+# ── VOLUMES ─────────────────────────────────────────────────
+volumes:
+  db-data:              # Persists PostgreSQL data
